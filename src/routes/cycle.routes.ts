@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   getAllCycles,
   getCycleById,
+  getActiveCycle,
   createCycle,
   updateCycle,
   deleteCycle,
@@ -10,6 +11,7 @@ import {
 const router = Router();
 
 router.get("/", getAllCycles);
+router.get("/active", getActiveCycle);
 router.get("/:id", getCycleById);
 router.post("/", createCycle);
 router.patch("/:id", updateCycle);

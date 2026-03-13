@@ -24,13 +24,27 @@ export async function getCycleById(req: Request, res: Response, next: NextFuncti
   }
 }
 
+export async function getActiveCycle(_req: Request, res: Response, next: NextFunction) {
+  try {
+    const cycle = await prisma.cycle.findFirst({ where: { active: true } });
+    if (!cycle) {
+      res.status(404).json({ error: "No active cycle found" });
+      return;
+    }
+    res.json(formatCycle(cycle));
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function createCycle(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name, cycleEndDate, capacity, paidCount } = req.body as {
+    const { name, cycleEndDate, capacity, paidCount, active } = req.body as {
       name: string;
       cycleEndDate: string;
       capacity: number;
       paidCount: number;
+      active?: boolean;
     };
     const cycle = await prisma.cycle.create({
       data: {
@@ -38,6 +52,7 @@ export async function createCycle(req: Request, res: Response, next: NextFunctio
         cycleEndDate: new Date(cycleEndDate),
         capacity,
         paidCount,
+        ...(active !== undefined && { active }),
       },
     });
     res.status(201).json(formatCycle(cycle));
@@ -49,11 +64,12 @@ export async function createCycle(req: Request, res: Response, next: NextFunctio
 export async function updateCycle(req: Request, res: Response, next: NextFunction) {
   try {
     const id = req.params["id"] as string;
-    const { name, cycleEndDate, capacity, paidCount } = req.body as {
+    const { name, cycleEndDate, capacity, paidCount, active } = req.body as {
       name?: string;
       cycleEndDate?: string;
       capacity?: number;
       paidCount?: number;
+      active?: boolean;
     };
     const cycle = await prisma.cycle.update({
       where: { id },
@@ -62,6 +78,7 @@ export async function updateCycle(req: Request, res: Response, next: NextFunctio
         ...(cycleEndDate && { cycleEndDate: new Date(cycleEndDate) }),
         ...(capacity !== undefined && { capacity }),
         ...(paidCount !== undefined && { paidCount }),
+        ...(active !== undefined && { active }),
       },
     });
     res.json(formatCycle(cycle));
@@ -86,6 +103,7 @@ function formatCycle(cycle: {
   cycleEndDate: Date;
   capacity: number;
   paidCount: number;
+  active: boolean;
   updatedAt: Date;
 }) {
   return {
@@ -95,6 +113,7 @@ function formatCycle(cycle: {
     capacity: cycle.capacity,
     paid_count: cycle.paidCount,
     remaining: cycle.capacity - cycle.paidCount,
+    active: cycle.active,
     updated_at: cycle.updatedAt.toISOString(),
   };
 }

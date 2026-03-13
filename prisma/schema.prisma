@@ -13,6 +13,7 @@ model Cycle {
   cycleEndDate DateTime
   capacity     Int
   paidCount    Int
+  active       Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

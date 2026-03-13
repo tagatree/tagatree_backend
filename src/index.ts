@@ -1,10 +1,14 @@
 import "dotenv/config";
 import express from "express";
 import cycleRoutes from "./routes/cycle.routes.js";
+import webhookRoutes from "./routes/webhook.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
+
+// Webhook must be mounted before express.json() to receive raw body
+app.use("/webhooks", webhookRoutes);
 
 app.use(express.json());
 
@@ -17,6 +21,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/cycles", cycleRoutes);
+
 
 app.use(errorHandler);
 
