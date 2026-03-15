@@ -37,7 +37,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
 
 async function sendPaymentConfirmationEmail(email: string, name: string | null | undefined) {
   await resend.emails.send({
-    from: "TagaTree <noreply@notify.balisquad.com>",
+    from: "TagaTree <noreply@mail.tagatree.com>",
     to: email,
     subject: "Payment Confirmed",
     html: `
