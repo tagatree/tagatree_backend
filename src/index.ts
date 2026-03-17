@@ -1,11 +1,16 @@
 import "dotenv/config";
 import express from "express";
+import cors from "cors";
 import cycleRoutes from "./routes/cycle.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN,
+}));
 
 // Webhook must be mounted before express.json() to receive raw body
 app.use("/webhooks", webhookRoutes);
