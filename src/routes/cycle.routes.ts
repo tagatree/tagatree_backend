@@ -3,6 +3,7 @@ import {
   getAllCycles,
   getCycleById,
   getActiveCycle,
+  getStats,
   createCycle,
   updateCycle,
   deleteCycle,
@@ -11,6 +12,7 @@ import {
 const router = Router();
 
 router.get("/", getAllCycles);
+router.get("/stats", getStats);
 router.get("/active", getActiveCycle);
 router.get("/:id", getCycleById);
 router.post("/", createCycle);

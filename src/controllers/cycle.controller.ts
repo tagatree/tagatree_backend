@@ -37,10 +37,45 @@ export async function getActiveCycle(_req: Request, res: Response, next: NextFun
   }
 }
 
+export async function getStats(_req: Request, res: Response, next: NextFunction) {
+  try {
+    const [cycles, activeCycle] = await Promise.all([
+      prisma.cycle.findMany({ select: { paidCount: true } }),
+      prisma.cycle.findFirst({ where: { active: true } }),
+    ]);
+
+    const totalTreesPlanted = cycles.reduce((sum, c) => sum + c.paidCount, 0);
+    const today = new Date();
+
+    res.set("Cache-Control", "public, max-age=60");
+    res.json({
+      total_trees_planted: totalTreesPlanted,
+      active_cycle: activeCycle
+        ? {
+            location: activeCycle.name,
+            cycle_start_date: activeCycle.cycleStartDate.toISOString().split("T")[0],
+            cycle_end_date: activeCycle.cycleEndDate.toISOString().split("T")[0],
+            days_remaining: Math.max(
+              0,
+              Math.ceil(
+                (activeCycle.cycleEndDate.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              )
+            ),
+            remaining_spots: activeCycle.capacity - activeCycle.paidCount,
+          }
+        : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function createCycle(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name, cycleEndDate, capacity, paidCount, active } = req.body as {
+    const { name, cycleStartDate, cycleEndDate, capacity, paidCount, active } = req.body as {
       name: string;
+      cycleStartDate: string;
       cycleEndDate: string;
       capacity: number;
       paidCount: number;
@@ -49,6 +84,7 @@ export async function createCycle(req: Request, res: Response, next: NextFunctio
     const cycle = await prisma.cycle.create({
       data: {
         name,
+        cycleStartDate: new Date(cycleStartDate),
         cycleEndDate: new Date(cycleEndDate),
         capacity,
         paidCount,
@@ -64,8 +100,9 @@ export async function createCycle(req: Request, res: Response, next: NextFunctio
 export async function updateCycle(req: Request, res: Response, next: NextFunction) {
   try {
     const id = req.params["id"] as string;
-    const { name, cycleEndDate, capacity, paidCount, active } = req.body as {
+    const { name, cycleStartDate, cycleEndDate, capacity, paidCount, active } = req.body as {
       name?: string;
+      cycleStartDate?: string;
       cycleEndDate?: string;
       capacity?: number;
       paidCount?: number;
@@ -75,6 +112,7 @@ export async function updateCycle(req: Request, res: Response, next: NextFunctio
       where: { id },
       data: {
         ...(name !== undefined && { name }),
+        ...(cycleStartDate && { cycleStartDate: new Date(cycleStartDate) }),
         ...(cycleEndDate && { cycleEndDate: new Date(cycleEndDate) }),
         ...(capacity !== undefined && { capacity }),
         ...(paidCount !== undefined && { paidCount }),
@@ -100,6 +138,7 @@ export async function deleteCycle(req: Request, res: Response, next: NextFunctio
 function formatCycle(cycle: {
   id: string;
   name: string;
+  cycleStartDate: Date;
   cycleEndDate: Date;
   capacity: number;
   paidCount: number;
@@ -109,6 +148,7 @@ function formatCycle(cycle: {
   return {
     cycle_id: cycle.id,
     name: cycle.name,
+    cycle_start_date: cycle.cycleStartDate.toISOString().split("T")[0],
     cycle_end_date: cycle.cycleEndDate.toISOString().split("T")[0],
     capacity: cycle.capacity,
     paid_count: cycle.paidCount,
