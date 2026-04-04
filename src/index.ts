@@ -9,7 +9,7 @@ const app = express();
 const port = Number(process.env.PORT) || 3000;
 
 app.use(cors({
-  origin: process.env.CORS_ORIGIN,
+  origin: process.env.CORS_ORIGIN?.split(",").map((o) => o.trim()),
 }));
 
 // Webhook must be mounted before express.json() to receive raw body
