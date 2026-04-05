@@ -23,11 +23,12 @@ export async function handleStripeWebhook(req: Request, res: Response) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     if (session.payment_status === "paid") {
-      await incrementActiveCyclePaidCount();
+      const treeCount = await getTreeCountFromSession(session.id);
+      await incrementActiveCyclePaidCount(treeCount);
       const email = session.customer_details?.email;
       const name = session.customer_details?.name;
       if (email) {
-        await sendPaymentConfirmationEmail(email, name);
+        await sendPaymentConfirmationEmail(email, name, treeCount);
       }
     }
   }
@@ -35,19 +36,35 @@ export async function handleStripeWebhook(req: Request, res: Response) {
   res.json({ received: true });
 }
 
-async function sendPaymentConfirmationEmail(email: string, name: string | null | undefined) {
+async function getTreeCountFromSession(sessionId: string): Promise<number> {
+  const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
+    expand: ["data.price.product"],
+  });
+
+  let totalTrees = 0;
+  for (const item of lineItems.data) {
+    const product = item.price?.product as Stripe.Product;
+    const treeCount = parseInt(product.metadata.tree_count || "1", 10);
+    totalTrees += treeCount * (item.quantity ?? 1);
+  }
+
+  return totalTrees;
+}
+
+async function sendPaymentConfirmationEmail(email: string, name: string | null | undefined, treeCount: number) {
+  const treePlural = treeCount === 1 ? "tree" : "trees";
   await resend.emails.send({
     from: "TagaTree <noreply@mail.tagatree.com>",
     to: email,
     subject: "Payment Confirmed",
     html: `
       <h2>Thank you${name ? `, ${name}` : ""}!</h2>
-      <p>Your payment has been confirmed. Welcome to TagaTree.</p>
+      <p>Your payment has been confirmed. You've adopted ${treeCount} ${treePlural}. Welcome to TagaTree.</p>
     `,
   });
 }
 
-async function incrementActiveCyclePaidCount() {
+async function incrementActiveCyclePaidCount(treeCount: number) {
   const activeCycle = await prisma.cycle.findFirst({ where: { active: true } });
   if (!activeCycle) {
     console.warn("Stripe webhook: no active cycle found, skipping paidCount update");
@@ -55,6 +72,6 @@ async function incrementActiveCyclePaidCount() {
   }
   await prisma.cycle.update({
     where: { id: activeCycle.id },
-    data: { paidCount: { increment: 1 } },
+    data: { paidCount: { increment: treeCount } },
   });
 }
